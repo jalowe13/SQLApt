@@ -4,8 +4,9 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
 # Jacob Lowe
-# Ignore API Key
+# Ignore API Key and Properties
 key.txt
+properties.txt
 
 
 # User-specific files
