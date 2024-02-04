@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
@@ -72,12 +73,63 @@ namespace SQLApt
 
             using (var response = await client.SendAsync(request))
             {
+                var outputProps = new HashSet<string>
+                {
+                    "name","availableUnits"
+                };
                 response.EnsureSuccessStatusCode();
                 var body = await response.Content.ReadAsStringAsync();
-                Console.WriteLine(body);
+                var json = JsonDocument.Parse(body);
+                
+                var dataExists = json.RootElement.TryGetProperty("data", out JsonElement dataElement);
+                if (dataExists) // Attempt to get the data property
+                {
+                    int iterations = 0;
+                    int priceUpdates = 0;
+                    KeyValuePair<string, Int64> lowestUnit = new KeyValuePair<string, Int64>("", Int64.MaxValue);
+                    foreach (var property in dataElement.EnumerateObject())
+                    {
+                        bool propertyExists = outputProps.Contains(property.Name) && property.Name == "availableUnits";
+                        if (property.Name == "name")
+                        {
+                            Console.WriteLine("Property Name: " + property.Value.GetString());
+                        }
+                        if (propertyExists)
+                        {
+                            {
+                                foreach (var unit in property.Value.EnumerateArray())
+                                {
+
+                                    if (unit.TryGetProperty("price", out JsonElement priceElement))
+                                    {
+                                        if (priceElement.GetInt64() != 0) // If the price is not 0
+                                        {
+                                            var unitName = unit.GetProperty("name").GetString();
+                                            var unitPrice = priceElement.GetInt64();
+                                            if (unitPrice < lowestUnit.Value)
+                                            {
+                                                //Console.WriteLine("New lowest unit found: " + unitName + " at " + unitPrice + "!");
+                                                lowestUnit = new KeyValuePair<string, Int64>(unitName, unitPrice);
+                                                priceUpdates++;
+                                            }
+                                        }
+                                    }
+                                    
+                                }
+                            }             
+                        }
+                        iterations++;
+                    }
+                    //Console.WriteLine("Total price updates: " + priceUpdates);
+                    Console.WriteLine("Lowest Unit: " + lowestUnit.Key + " at " + lowestUnit.Value + "!");
+                    Console.WriteLine("Total iterations: " + iterations);
+                }
+                else
+                {
+                    Console.WriteLine("Data not found.");
+                }
             }
         }
-
         static List<string> grabProperties()
         {
             List<string> propertyIds = new List<string>();
